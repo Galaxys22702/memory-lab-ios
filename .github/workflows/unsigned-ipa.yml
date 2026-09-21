@@ -1,0 +1,67 @@
+name: Build unsigned device IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'MemoryLab/**'
+      - 'project.yml'
+      - '.github/workflows/unsigned-ipa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for physical iPhone without Apple signing
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project MemoryLab.xcodeproj \
+            -scheme MemoryLab \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Apply ad-hoc signature with requested entitlements
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/MemoryLab.app"
+          test -d "$APP"
+          /usr/bin/codesign --force --sign - \
+            --entitlements MemoryLab/MemoryLab.entitlements \
+            "$APP"
+          /usr/bin/codesign -d --entitlements :- "$APP" 2>&1 | tee "$RUNNER_TEMP/entitlements.txt"
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/MemoryLab.app" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          /usr/bin/zip -qry MemoryLab-unsigned.ipa Payload
+
+      - name: Upload IPA artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MemoryLab-unsigned-ipa
+          path: |
+            ${{ runner.temp }}/MemoryLab-unsigned.ipa
+            ${{ runner.temp }}/entitlements.txt
+          if-no-files-found: error
+          retention-days: 7
