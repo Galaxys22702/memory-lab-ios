@@ -1,0 +1,9 @@
+.DS_Store
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+AuthKey_*.p8
+*.p12
+*.cer
+*.mobileprovision
