@@ -1,3 +1,4 @@
+# Builds a sideload-ready IPA without Apple credentials.
 name: Build unsigned device IPA
 
 on:
