@@ -1,5 +1,8 @@
 name: Validate iOS project
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
@@ -9,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
